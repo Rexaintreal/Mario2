@@ -17,6 +17,8 @@ const startBtn = document.getElementById('startBtn');
 const restartBtn = document.getElementById('restartBtn');
 const playAgainBtn = document.getElementById('playAgainBtn');
 const muteBtn = document.getElementById('muteBtn');
+const invincibleBar = document.getElementById('invincibleBar');
+const invincibleFill = document.getElementById('invincibleFill');
 
 // ------------------------------------------------------------
 // Constants
@@ -97,6 +99,18 @@ const coinsData = [
   { x: 3250, y: 420, r: 12 },
 ];
 
+const powerupsData = [
+  { x: 950,  y: 250, r: 14 },
+  { x: 1850, y: 220, r: 14 },
+  { x: 2750, y: 240, r: 14 },
+];
+
+let powerups = [];
+
+const INVINCIBLE_DURATION = 6000;
+let invincibleUntil = 0;
+
+
 // Flagpole goal (classic end-of-level marker) + a small castle behind it
 const flagpole = { x: 3340, y: 300, w: 12, h: 160 };
 const flagpoleTrigger = { x: flagpole.x - 15, y: flagpole.y, w: flagpole.w + 30, h: flagpole.h };
@@ -137,7 +151,9 @@ const ASSET_MANIFEST = {
   bgSky:       'assets/bg_sky.png',
   bgMountains: 'assets/bg_mountain.png',
   bgHills:     'assets/bg_hills.png',
+  powerup:     'assets/powerup.png',
 };
+
 function loadAssets(onComplete) {
   let loaded = 0;
   const total = Object.keys(ASSET_MANIFEST).length;
@@ -157,10 +173,11 @@ function imgOk(key) {
 
 const SFX = [];
 const SFX_MANIFEST = {
-  jump:  'music/jump.mp3',
-  coin:  'music/coin.mp3',
-  death: 'music/death.mp3',
-  win:   'music/win.mp3',
+  jump:    'music/jump.mp3',
+  coin:    'music/coin.mp3',
+  death:   'music/death.mp3',
+  win:     'music/win.mp3',
+  powerup: 'music/powerup.mp3',
 };
 
 let bgm = null;
@@ -195,6 +212,7 @@ function sfxJump()  { playSfx('jump'); }
 function sfxCoin()  { playSfx('coin'); }
 function sfxDeath() { playSfx('death'); }
 function sfxWin()   { playSfx('win'); }
+function sfxPowerup() { playSfx('powerup'); }
 
 
 function startMusic() {
@@ -283,6 +301,8 @@ function initLevel() {
   player.facing = 1;
 
   coins = coinsData.map(c => ({ ...c }));
+  powerups = powerupsData.map(p => ({ ...p }));
+  invincibleUntil = 0;
   score = 0;
   camera.x = 0;
   updateHUD();
@@ -375,6 +395,7 @@ function updatePlayer(dt) {
   for (const s of spikes) {
     const hitbox = { x: s.x + 8, y: s.y + 12, w: s.w - 16, h: s.h - 12 };
     if (rectsOverlap(player, hitbox)) {
+      if (Date.now() < invincibleUntil) continue;
       gameOver();
       return;
     }
@@ -386,6 +407,14 @@ function updatePlayer(dt) {
       score++;
       updateHUD();
       sfxCoin();
+    }
+  }
+
+  for (let i = powerups.length - 1; i >= 0; i--) {
+    if (circleRectOverlap(powerups[i], player)) {
+      powerups.splice(i, 1);
+      invincibleUntil = Date.now() + INVINCIBLE_DURATION; 
+      sfxPowerup();
     }
   }
 
@@ -568,13 +597,38 @@ function drawCoins() {
   }
 }
 
+function drawPowerups() {
+  for (const p of powerups) {
+    const by = p.y + Math.sin(Date.now() / 250 + p.x * 0.1) * 5;
+    if (imgOk('powerup')) {
+      ctx.drawImage(ASSETS.powerup, p.x - p.r, by - p.r, p.r * 2, p.r * 2);   // ← 5 args, fixed
+    } else {
+      ctx.fillStyle = '#FFD700';
+      ctx.beginPath();
+      for (let i = 0; i < 5; i++) {
+        const ang = (Math.PI * 2 * i) / 5 - Math.PI / 2;
+        const ang2 = ang + Math.PI / 5;
+        ctx.lineTo(p.x + Math.cos(ang) * p.r, by + Math.sin(ang) * p.r);
+        ctx.lineTo(p.x + Math.cos(ang2) * p.r * 0.45, by + Math.sin(ang2) * p.r * 0.45);
+      }
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+}
+
 // edited manually
 function drawPlayer() {
   const p = player;
+  const isInvincible = Date.now() < invincibleUntil;
   ctx.save();
   ctx.translate(p.x + p.w / 2, p.y + p.h / 2);
   if (player.facing === -1) ctx.scale(-1, 1);
 
+  if (isInvincible) {
+    const hue = (Date.now() / 4) % 360;
+    ctx.filter = `hue-rotate(${hue}deg) saturate(3) brightness(1.2)`;
+  }
   if (imgOk('player')) {
     ctx.drawImage(ASSETS.player, -p.w / 2, -p.h / 2, p.w, p.h);
   } else {
@@ -582,6 +636,7 @@ function drawPlayer() {
     ctx.fillStyle = '#E52521'; ctx.fillRect(0, 0, p.w, p.h * 0.4);
     ctx.fillStyle = '#2A55D8'; ctx.fillRect(0, p.h * 0.4, p.w, p.h * 0.6);
   }
+  ctx.filter = 'none';
   ctx.restore();
 }
 
@@ -599,6 +654,7 @@ function drawWorld() {
 
   drawSpikes();
   drawCoins();
+  drawPowerups(); 
   drawFlagpole();
   drawPlayer();
 
@@ -627,6 +683,13 @@ function loop(timestamp) {
       }
     } else {
       animTimer = 0; animFrame = 0;
+    }
+    const remaining = invincibleUntil - Date.now();
+    if (remaining > 0) {
+      invincibleBar.classList.remove('hidden');
+      invincibleFill.style.width = `${(remaining / INVINCIBLE_DURATION) * 100}%`;
+    } else {
+      invincibleBar.classList.add('hidden');
     }
   }
   render();

@@ -205,3 +205,26 @@ html, body {
 .mute-btn:hover {
   opacity: 0.8;
 }
+
+.invincible-bar {
+  width: 80px;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid #FFD700;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-left: 8px;
+}
+
+.invincible-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff);
+  background-size: 300% 100%;
+  animation: rainbow-shift 1s linear infinite;
+  width: 100%;
+}
+
+@keyframes rainbow-shift {
+  from { background-position: 0% 0; }
+  to   { background-position: 100% 0; }
+}
