@@ -24,8 +24,8 @@ const GRAVITY = 0.7;
 const MAX_FALL_SPEED = 16;
 const MOVE_SPEED = 4.6;
 const JUMP_FORCE = 14.5;
-const DEATH_Y = 720; // falling below this = dead (fell into a pit)
-
+const DEATH_Y = 720
+let lastTime = 0;
 // ------------------------------------------------------------
 // Level definition (world coordinates)
 // ------------------------------------------------------------
@@ -119,6 +119,38 @@ const player = {
 };
 
 const keys = {};
+let animTimer = 0;
+let animFrame = 0;
+const P_FRAME_W = 32;
+const P_FRAME_H = 48;
+
+//assets - manual code
+const ASSETS ={};
+const ASSET_MANIFEST = {
+  player:      'assets/mario2.png',
+  groundTop:   'assets/ground_top.png',
+  groundSub:   'assets/ground_sub.png',
+  brickTile:   'assets/brick_tile.png',
+  coin:        'assets/coin.png',
+  spike:       'assets/spike.png',
+  bgSky:       'assets/bg_sky.png',
+  bgMountains: 'assets/bg_mountain.png',
+  bgHills:     'assets/bg_hills.png',
+};
+function loadAssets(onComplete) {
+  let loaded = 0;
+  const total = Object.keys(ASSET_MANIFEST).length;
+  for (const [key, src] of Object.entries(ASSET_MANIFEST)) {
+    const img = new Image();
+    img.onload = img.onerror = () => { if (++loaded === total) onComplete(); };
+    img.src = src;
+    ASSETS[key] = img;
+  }
+}
+function imgOk(key) {
+  const img = ASSETS[key];
+  return img && img.complete && img.naturalWidth > 0;
+}
 
 // ------------------------------------------------------------
 // Input
@@ -207,13 +239,12 @@ function winGame() {
 // ------------------------------------------------------------
 // Update
 // ------------------------------------------------------------
-function updatePlayer() {
-  // --- horizontal movement ---
+function updatePlayer(dt) {
   player.vx = 0;
   if (keys['a']) { player.vx = -MOVE_SPEED; player.facing = -1; }
   if (keys['d']) { player.vx = MOVE_SPEED; player.facing = 1; }
 
-  player.x += player.vx;
+  player.x += player.vx * dt;
 
   for (const p of platforms) {
     if (rectsOverlap(player, p)) {
@@ -231,11 +262,11 @@ function updatePlayer() {
   }
 
   // --- gravity ---
-  player.vy += GRAVITY;
+  player.vy += GRAVITY * dt; ;
   player.vy = Math.min(player.vy, MAX_FALL_SPEED);
 
   player.grounded = false;
-  player.y += player.vy;
+  player.y += player.vy * dt;
 
   for (const p of platforms) {
     if (rectsOverlap(player, p)) {
@@ -289,74 +320,83 @@ function updateCamera() {
 // Render — flat colors only, no gradients
 // ------------------------------------------------------------
 function drawBackground() {
-  // flat sky
-  ctx.fillStyle = '#5C94FC';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // sun
-  ctx.fillStyle = '#FFD700';
-  ctx.beginPath();
-  ctx.arc(canvas.width - 120 - camera.x * 0.05, 90, 44, 0, Math.PI * 2);
-  ctx.fill();
-
-  // parallax bushes/hills (slow scroll)
-  const hillOffset = camera.x * 0.3;
-  ctx.fillStyle = '#00A800';
-  for (let i = -1; i < 6; i++) {
-    const hx = i * 400 - (hillOffset % 400);
+  if (imgOk('bgSky')) {
+    ctx.drawImage(ASSETS.bgSky, 0, 0, canvas.width, canvas.height);
+  } else {
+    ctx.fillStyle = '#4A90D9';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#FFD700';
     ctx.beginPath();
-    ctx.arc(hx, 480, 130, Math.PI, 0);
+    ctx.arc(canvas.width - 110, 78, 40, 0, Math.PI * 2);
     ctx.fill();
+    const cloudOff = camera.x * 0.13;
+    ctx.fillStyle = '#fff';
+    for (let i = 0; i < 10; i++) {
+      drawCloud((i * 290 + 90) - (cloudOff % 2900), 52 + (i % 3) * 38);
+    }
   }
-
-  // clouds (faster parallax) — classic puffy silhouette, flat white
-  const cloudOffset = camera.x * 0.15;
-  ctx.fillStyle = '#FFFFFF';
-  for (let i = 0; i < 8; i++) {
-    const cx = (i * 300 + 100) - (cloudOffset % 2400);
-    const cy = 60 + (i % 3) * 40;
-    drawCloud(cx, cy);
-  }
+  drawParallaxLayer('bgMountains', 0.07, canvas.height - 300);
+  drawParallaxLayer('bgHills',     0.25, canvas.height - 200);
 }
+
+function drawParallaxLayer(key, speed, destY) {
+  if (!imgOk(key)) return;
+  const img = ASSETS[key];
+  const iw = img.naturalWidth;
+  const ih = img.naturalHeight;
+  const offset = (camera.x * speed) % iw;
+  for (let x = -offset; x < canvas.width + iw; x += iw) {
+    ctx.drawImage(img, x, destY, iw, ih);
+  }
+} 
 
 function drawCloud(x, y) {
   ctx.beginPath();
-  ctx.arc(x, y, 16, 0, Math.PI * 2);
-  ctx.arc(x + 18, y - 7, 18, 0, Math.PI * 2);
-  ctx.arc(x + 38, y, 14, 0, Math.PI * 2);
+  ctx.arc(x,      y,      18, 0, Math.PI * 2);
+  ctx.arc(x + 20, y - 9,  22, 0, Math.PI * 2);
+  ctx.arc(x + 44, y - 3,  16, 0, Math.PI * 2);
   ctx.fill();
 }
 
 // Brick-block style used for ground and floating platforms
 function drawBrickBlock(x, y, w, h) {
-  const base = '#C84C0C';
-  const line = '#7A2E00';
-  const highlight = '#E8752E';
-  const tile = 32;
-
-  ctx.fillStyle = base;
-  ctx.fillRect(x, y, w, h);
-
-  ctx.strokeStyle = line;
-  ctx.lineWidth = 2;
-  for (let gx = x; gx <= x + w; gx += tile) {
-    ctx.beginPath();
-    ctx.moveTo(gx, y);
-    ctx.lineTo(gx, y + h);
-    ctx.stroke();
+  const T = 32;
+  if (imgOk('brickTile')) {
+    for (let ty = y; ty < y + h; ty += T) {
+      for (let tx = x; tx < x + w; tx += T) {
+        ctx.drawImage(ASSETS.brickTile,
+          0, 0, Math.min(T, x+w-tx), Math.min(T, y+h-ty),
+          tx, ty, Math.min(T, x+w-tx), Math.min(T, y+h-ty));
+      }
+    }
+  } else {
+    ctx.fillStyle = '#C84C0C';
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = '#7A2E00';
+    ctx.lineWidth = 2;
+    for (let gx = x; gx <= x+w; gx += T) { ctx.beginPath(); ctx.moveTo(gx,y); ctx.lineTo(gx,y+h); ctx.stroke(); }
+    for (let gy = y; gy <= y+h; gy += T) { ctx.beginPath(); ctx.moveTo(x,gy); ctx.lineTo(x+w,gy); ctx.stroke(); }
   }
-  for (let gy = y; gy <= y + h; gy += tile) {
-    ctx.beginPath();
-    ctx.moveTo(x, gy);
-    ctx.lineTo(x + w, gy);
-    ctx.stroke();
-  }
+}
 
-  ctx.fillStyle = highlight;
-  for (let gx = x; gx < x + w; gx += tile) {
-    for (let gy = y; gy < y + h; gy += tile) {
-      ctx.fillRect(gx + 4, gy + 4, 5, 5);
-      ctx.fillRect(gx + tile - 9, gy + tile - 9, 5, 5);
+function drawGroundBlock(x, y, w, h) {
+  const topImg = ASSETS.groundTop;
+  const subImg = ASSETS.groundSub;
+  const T = (imgOk('groundTop') && topImg.naturalWidth) || 32;
+  for (let row = 0, ty = y; ty < y + h; ty += T, row++) {
+    const key  = row === 0 ? 'groundTop' : 'groundSub';
+    const img  = ASSETS[key];
+    const rowH = Math.min(T, y + h - ty);
+    for (let tx = x; tx < x + w; tx += T) {
+      const colW = Math.min(T, x + w - tx);
+      if (imgOk(key)) {
+        ctx.drawImage(img,
+          0, 0, img.naturalWidth * (colW / T), img.naturalHeight * (rowH / T),
+          tx, ty, colW, rowH);
+      } else {
+        ctx.fillStyle = row === 0 ? '#3DB520' : '#8B5E3C';
+        ctx.fillRect(tx, ty, colW, rowH);
+      }
     }
   }
 }
@@ -413,59 +453,52 @@ function drawFlagpole() {
 }
 
 function drawSpikes() {
-  ctx.fillStyle = '#D8D8D8';
-  ctx.strokeStyle = '#8A8A8A';
-  ctx.lineWidth = 2;
   for (const s of spikes) {
-    ctx.beginPath();
-    ctx.moveTo(s.x, s.y + s.h);
-    ctx.lineTo(s.x + s.w / 2, s.y);
-    ctx.lineTo(s.x + s.w, s.y + s.h);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
+    if (imgOk('spike')) {
+      ctx.drawImage(ASSETS.spike, s.x, s.y, s.w, s.h);
+    } else {
+      ctx.fillStyle = '#D8D8D8'; ctx.strokeStyle = '#8A8A8A'; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y + s.h);
+      ctx.lineTo(s.x + s.w / 2, s.y);
+      ctx.lineTo(s.x + s.w, s.y + s.h);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
   }
 }
+
+const COIN_FRAME_W = 24;
+const COIN_FRAMES = 6;
 
 function drawCoins() {
-  const bob = Date.now() / 300;
+  const bob = Math.sin(Date.now() / 300) * 4;
   for (const c of coins) {
-    const by = c.y + Math.sin(bob + c.x * 0.1) * 4;
-    ctx.fillStyle = '#FFD700';
-    ctx.beginPath();
-    ctx.arc(c.x, by, c.r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#B8860B';
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    ctx.fillStyle = '#FFF6C6';
-    ctx.fillRect(c.x - 2, by - c.r + 3, 3, c.r * 2 - 6);
+    const by = c.y + Math.sin(Date.now() / 300 + c.x * 0.1) * 4;
+    if (imgOk('coin')) {
+      ctx.drawImage(ASSETS.coin, c.x - c.r, by - c.r, c.r * 2, c.r * 2);
+    } else {
+      ctx.fillStyle = '#FFD700';
+      ctx.beginPath(); ctx.arc(c.x, by, c.r, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#B8860B'; ctx.lineWidth = 3; ctx.stroke();
+    }
   }
 }
 
-// Simple two-tone rectangle character (red cap/shirt, blue overalls)
+// edited manually
 function drawPlayer() {
-  const topH = player.h * 0.4;
-  const botH = player.h - topH;
+  const p = player;
+  ctx.save();
+  ctx.translate(p.x + p.w / 2, p.y + p.h / 2);
+  if (player.facing === -1) ctx.scale(-1, 1);
 
-  // overalls (blue)
-  ctx.fillStyle = '#2A55D8';
-  ctx.fillRect(player.x, player.y + topH, player.w, botH);
-
-  // shirt/cap (red)
-  ctx.fillStyle = '#E52521';
-  ctx.fillRect(player.x, player.y, player.w, topH);
-
-  // eyes (show facing direction)
-  ctx.fillStyle = '#fff';
-  const eyeX = player.facing === 1 ? player.x + player.w - 12 : player.x + 4;
-  ctx.fillRect(eyeX, player.y + topH - 2, 8, 8);
-  ctx.fillStyle = '#222';
-  ctx.fillRect(eyeX + (player.facing === 1 ? 3 : 1), player.y + topH, 4, 4);
-
-  // mustache
-  ctx.fillStyle = '#3A2A1A';
-  ctx.fillRect(player.x + player.w / 2 - 6, player.y + topH + 8, 12, 4);
+  if (imgOk('player')) {
+    ctx.drawImage(ASSETS.player, -p.w / 2, -p.h / 2, p.w, p.h);
+  } else {
+    ctx.translate(-p.w / 2, -p.h / 2);
+    ctx.fillStyle = '#E52521'; ctx.fillRect(0, 0, p.w, p.h * 0.4);
+    ctx.fillStyle = '#2A55D8'; ctx.fillRect(0, p.h * 0.4, p.w, p.h * 0.6);
+  }
+  ctx.restore();
 }
 
 function drawWorld() {
@@ -475,8 +508,9 @@ function drawWorld() {
   drawCastle();
 
   for (const p of platforms) {
-    if (p.type === 'pipe') drawPipe(p.x, p.y, p.w, p.h);
-    else drawBrickBlock(p.x, p.y, p.w, p.h);
+    if      (p.type === 'pipe')   drawPipe(p.x, p.y, p.w, p.h);
+    else if (p.type === 'ground') drawGroundBlock(p.x, p.y, p.w, p.h);
+    else                          drawBrickBlock(p.x, p.y, p.w, p.h);
   }
 
   drawSpikes();
@@ -495,15 +529,28 @@ function render() {
 // ------------------------------------------------------------
 // Main loop
 // ------------------------------------------------------------
-function loop() {
+function loop(timestamp) {
+  if (!lastTime) lastTime = timestamp;
+  let dt = (timestamp - lastTime) / (1000 / 60);
+  lastTime = timestamp;
+
   if (state === 'playing') {
-    updatePlayer();
+    updatePlayer(dt);
     updateCamera();
+    if (Math.abs(player.vx) > 0.1 && player.grounded) {
+      if ((animTimer += dt) >= 6) {
+        animTimer = 0; animFrame++;
+      }
+    } else {
+      animTimer = 0; animFrame = 0;
+    }
   }
   render();
   requestAnimationFrame(loop);
 }
 
 // initial setup so the canvas isn't blank behind the start screen
-initLevel();
-requestAnimationFrame(loop);
+loadAssets(() => {
+  initLevel();
+  requestAnimationFrame(loop);
+});
