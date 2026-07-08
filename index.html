@@ -38,28 +38,34 @@
       </div>
       <!-- Start Screen -->
       <div id="startScreen" class="screen">
-        <h1 class="title">RECTANGLE<br>RUNNER</h1>
-        <p class="subtitle">A tiny platformer starring a very brave rectangle</p>
-        <div class="controls">
-          <div class="key-row"><span class="key">A</span><span class="key">D</span> Move Left / Right</div>
-          <div class="key-row"><span class="key wide">SPACE</span> Jump</div>
+        <div class="mc-panel">
+          <h1 class="title">Mario2</h1>
+          <p class="subtitle">FIGHT THE ENDER DRAGON</p>
+          <div class="controls">
+            <div class="key-row"><span class="key">A</span><span class="key">D</span> Move Left / Right</div>
+            <div class="key-row"><span class="key wide">SPACE</span> Jump</div>
+          </div>
+          <p class="hint">Collect coins, dodge the spikes, fight ender dragon, reach the flag!</p>
+          <button id="startBtn" class="btn">START GAME</button>
         </div>
-        <p class="hint">Collect coins, dodge the spikes, reach the flag!</p>
-        <button id="startBtn" class="btn">START GAME</button>
       </div>
 
       <!-- Game Over Screen -->
       <div id="gameOverScreen" class="screen hidden">
-        <h1 class="title over">GAME OVER</h1>
-        <p id="gameOverScore" class="subtitle"></p>
-        <button id="restartBtn" class="btn btn-red">RESTART</button>
+        <div class="mc-panel">
+          <h1 class="title over">GAME OVER</h1>
+          <p id="gameOverScore" class="subtitle"></p>
+          <button id="restartBtn" class="btn btn-red">RESTART</button>
+        </div>
       </div>
 
       <!-- Win Screen -->
       <div id="winScreen" class="screen hidden">
-        <h1 class="title win">LEVEL COMPLETE!</h1>
-        <p id="winScore" class="subtitle"></p>
-        <button id="playAgainBtn" class="btn btn-green">PLAY AGAIN</button>
+        <div class="mc-panel">
+          <h1 class="title win">LEVEL COMPLETE!</h1>
+          <p id="winScore" class="subtitle"></p>
+          <button id="playAgainBtn" class="btn btn-green">PLAY AGAIN</button>
+        </div>
       </div>
 
     </div>

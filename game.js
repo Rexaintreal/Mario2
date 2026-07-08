@@ -136,6 +136,7 @@ const boss = {
 };
 
 const ARENA_START_X = 3820;
+const NEAR_DRAGON_RANGE = 450;
 const HIT_COOLDOWN = 500;
 const FIREBALL_MIN_GAP = 1200;
 const FIREBALL_MAX_GAP = 2200;
@@ -591,11 +592,14 @@ function updatePlayer(dt) {
 
 function updateBoss(dt) {
   if (!boss.alive) return;
-  if (!boss.awake && player.x + player.w > ARENA_START_X) {
-    boss.awake = true;
-    boss.nextFireballAt = Date.now() + FIREBALL_MIN_GAP;
-    startBossMusic();
-    updateBossHUD();
+  if (!boss.awake) {
+    const nearDragon = boss.x - (player.x + player.w) < NEAR_DRAGON_RANGE;
+    if (player.hasSword || nearDragon) {
+      boss.awake = true;
+      boss.nextFireballAt = Date.now() + FIREBALL_MIN_GAP;
+      startBossMusic();
+      updateBossHUD();
+    }
   }
   if (!boss.awake) return;
 
