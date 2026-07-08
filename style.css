@@ -188,3 +188,20 @@ html, body {
 .btn-green {
   background: #2E9E2E;
 }
+
+.mute-btn {
+  pointer-events: auto;
+  background: none;
+  border: none;
+  color: #FFD700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-left: 8px;
+  padding: 2px;
+}
+
+.mute-btn:hover {
+  opacity: 0.8;
+}
