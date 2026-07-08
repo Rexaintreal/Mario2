@@ -136,8 +136,13 @@ const player = {
 const keys = {};
 let animTimer = 0;
 let animFrame = 0;
+let particles = [];
 const P_FRAME_W = 32;
 const P_FRAME_H = 48;
+let screenShake = {
+  time: 0,
+  intensity: 0
+};
 
 //assets - manual code
 const ASSETS ={};
@@ -168,6 +173,60 @@ function imgOk(key) {
   const img = ASSETS[key];
   return img && img.complete && img.naturalWidth > 0;
 }
+
+function spawnParticles(x, y, count, opts = {}) {
+  const {
+    color = '#FFD700',
+    speed = 3,
+    life = 30,
+    size = 3,
+    gravity = 0.15,
+  } = opts;
+  for (let i =0; i< count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const spd = Math.random() * speed + 1;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * spd,
+      vy: Math.sin(angle) * spd - 1,
+      life, maxLife: life,
+      size: Math.random() * size + 1,
+      color,
+      gravity,
+    });
+  }
+}
+
+function updateParticles(dt) {
+  for (let i = particles.length -1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vy += p.gravity * dt;
+    p.life -= dt;
+    if (p.life <= 0) {
+      particles.splice(i, 1);
+    }
+  }
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    const alpha = Math.max(0, p.life / p.maxLife);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function triggerShake(intensity = 8, time = 15) {
+  screenShake = {
+    time, intensity
+  };
+}
+
+
 
 // audio engine using files
 
@@ -327,6 +386,10 @@ function gameOver() {
   state = 'gameover';
   stopMusic();
   sfxDeath();
+  spawnParticles(player.x + player.w / 2, player.y + player.h / 2, 20, {
+    color: '#E52521', speed: 6, life: 35, size: 4, gravity: 0.2,
+  });
+  triggerShake(10, 20);
   gameOverScoreEl.textContent = `You collected ${score} / ${totalCoins} coins.`;
   gameOverScreen.classList.remove('hidden');
 }
@@ -336,6 +399,9 @@ function winGame() {
   state = 'win';
   stopMusic();
   sfxWin();
+  spawnParticles(player.x + player.w / 2, player.y, 25, {
+    color: '#FFD700', speed: 5, life: 40, size: 4, gravity: 0.08,
+  });
   winScoreEl.textContent = `You collected ${score} / ${totalCoins} coins!`;
   winScreen.classList.remove('hidden');
 }
@@ -363,6 +429,9 @@ function updatePlayer(dt) {
     player.vy = -JUMP_FORCE;
     player.grounded = false;
     sfxJump();
+    spawnParticles(player.x + player.w / 2, player.y + player.h, 6,{
+      color: '#D8D8D8', speed: 2, life: 18, size: 3, gravity: 0.05,
+    });
   }
 
   // --- gravity ---
@@ -403,6 +472,9 @@ function updatePlayer(dt) {
 
   for (let i = coins.length - 1; i >= 0; i--) {
     if (circleRectOverlap(coins[i], player)) {
+      spawnParticles(coins[i].x, coins[i].y, 10, {
+        color: '#FFD700', speed:4, life: 25, size: 3, gravity: 0.1,
+      });
       coins.splice(i, 1);
       score++;
       updateHUD();
@@ -662,8 +734,20 @@ function drawWorld() {
 }
 
 function render() {
+  ctx.save();
+  if (screenShake.time > 0) {
+    const dx = (Math.random() - 0.5) * screenShake.intensity;
+    const dy = (Math.random() - 0.5) * screenShake.intensity;
+    ctx.translate(dx, dy);
+  }
   drawBackground();
   drawWorld();
+
+  ctx.save();
+  ctx.translate(-camera.x, 0);
+  drawParticles();
+  ctx.restore();
+  ctx.restore();
 }
 
 // ------------------------------------------------------------
@@ -672,6 +756,7 @@ function render() {
 function loop(timestamp) {
   if (!lastTime) lastTime = timestamp;
   let dt = (timestamp - lastTime) / (1000 / 60);
+  dt = Math.min(dt, 2);
   lastTime = timestamp;
 
   if (state === 'playing') {
@@ -691,6 +776,10 @@ function loop(timestamp) {
     } else {
       invincibleBar.classList.add('hidden');
     }
+  }
+  updateParticles(dt);
+  if (screenShake.time > 0){
+    screenShake.time -= dt;
   }
   render();
   requestAnimationFrame(loop);
