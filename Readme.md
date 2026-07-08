@@ -12,9 +12,7 @@ A small Mario type platformer game which I made for ArcadeAI YSWS
 
 Sooo the whole base code for this game was generated using a prompt on the **Claude Sonnet AI (High) Model**. I did not write the first version as specified in Stage One. The detailed and exact prompt I used is:
 
-```
-Create a complete html css and js mario style platformer game using no external libraries or images add a camera that follows the player the character can be a simple rectangle for now add gravity and jumping physics space to jump a and d to go left and right add a goal door at the end of the level to complete it add some obstacles like spikes triangular touching them would show game over and restart button add coins also a score/coin countre at the top left and add a simple start screen game over game finsihed screens and level restarts on death draw everything in canvas 2d api only use bright colors and make sure to make html css and js files sepeartely
-```
+> Create a complete html css and js mario style platformer game using no external libraries or images add a camera that follows the player the character can be a simple rectangle for now add gravity and jumping physics space to jump a and d to go left and right add a goal door at the end of the level to complete it add some obstacles like spikes triangular touching them would show game over and restart button add coins also a score/coin countre at the top left and add a simple start screen game over game finsihed screens and level restarts on death draw everything in canvas 2d api only use bright colors and make sure to make html css and js files sepeartely
 
 After this I took the generated code and started building on top of it manually, changing and adding stuff until it became an actual proper game.
 
